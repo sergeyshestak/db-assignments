@@ -15,7 +15,15 @@ const ObjectId = require('mongodb').ObjectID;
  * Test timeout is increased to 60sec for the function.
  * */
 async function before(db) {
-    await db.collection('opportunities').createIndex({'initiativeId': 1});
+    await db.collection('opportunities').createIndex({
+		"initiativeId": 1,
+		"contacts.questions.category_id" : 1,
+		"contacts.datePublished": 1,
+	});
+	await db.collection('clientCriteria').createIndex({
+		"versions.initiativeId": 1,
+		"value": 1,
+	});
 }
 
 /**
@@ -39,8 +47,6 @@ async function before(db) {
  *   8. That's possible to rewrite a few last steps to merge a few pipeline steps in one.
  */
 async function task_3_1(db) {
-    throw new Error("Not implemented"); //remove the line before starting the task
-
     const result = await db.collection('opportunities').aggregate([
         {
             "$match" : {
@@ -61,17 +67,39 @@ async function task_3_1(db) {
             }
         },
         {
-            "$unwind" : "$contacts"
-        },
-        {
-            "$match" : {
-                "contacts.datePublished" : {
-                    "$ne" : null
-                }
+            $project: {
+				"initiativeId": 1,
+                "contacts.id" : 1,
+                "contacts.datePublished": 1,
+                "contacts.shortListedVendors": 1,
+                "contacts.win_vendor.name": 1,
+                "contacts.win_vendor.is_client": 1,
+                "contacts.win_vendor.value": 1,
+                "contacts.questions.answers.loopInstances.loop_text": 1,
+                "contacts.questions.answers.loopInstances.loop_instance": 1,
+                "contacts.questions.answers.loopInstances.is_selected": 1,
+                "contacts.questions.answers.primary_answer_value": 1,
+                "contacts.questions.answers.primary_answer_text": 1,
+                "contacts.questions.answers.criteria_value": 1,
+                "contacts.questions.label" : 1,
+                "contacts.questions.raw_text" : 1,
+                "contacts.questions.id" : 1,
+                "contacts.questions.category_id": 1,
+                "contacts.questions.criteria_value" : 1,
             }
         },
         {
-            "$match" : {
+            "$unwind" : {
+				path: "$contacts",
+				includeArrayIndex: "ArrayIndex"
+			}
+        },
+        {
+            "$match" : {$and: [{
+				"contacts.datePublished" : {
+					"$ne" : null
+				}
+			},{
                 "contacts.shortListedVendors" : {
                     "$elemMatch" : {
                         "$or" : [
@@ -91,23 +119,20 @@ async function task_3_1(db) {
                         ]
                     }
                 }
-            }
+            }]}
         },
         {
             "$unwind" : "$contacts.questions"
         },
         {
-            "$match" : {
+            "$match" : {$and: [{
                 "contacts.questions.category_id" : {
                     "$in" : [
                         105,
                         147
                     ]
                 }
-            }
-        },
-        {
-            "$match" : {
+            },{
                 "$nor" : [
                     {
                         "contacts.questions.category_id" : 105,
@@ -137,11 +162,16 @@ async function task_3_1(db) {
                         }
                     }
                 ]
-            }
+            }]}
         },
         {
             "$unwind" : "$contacts.questions.answers"
-        },
+		},
+		// {
+		// 	"$sort": {
+		// 		"contacts.questions.answers.primary_answer_value": -1
+		// 	}
+		// },
         {
             "$match" : {
                 "contacts.questions.answers.primary_answer_value" : {
@@ -242,22 +272,38 @@ async function task_3_1(db) {
         },
         {
             "$lookup" : {
-                "from" : "clientCriteria",
-                "localField" : "criteria_value",
-                "foreignField" : "value",
+				"from" : "clientCriteria",
+				"let": {"criteria_value": "$criteria_value"},
+				"pipeline": [
+					{
+						"$match" : {
+							"versions.initiativeId" : ObjectId("58af4da0b310d92314627290")
+						}
+					},
+					{
+						"$project": {
+							"versions.definition": 1,
+							"definition": 1,
+							"label": 1,
+							"value": 1
+						}
+					},
+					{
+						"$match": {
+							"$expr": {
+								"$eq": ["$value", "$$criteria_value"]
+							}
+						}
+					}
+				],
                 "as" : "criteria"
             }
-        },
+		},
         {
             "$unwind" : "$criteria"
         },
         {
             "$unwind" : "$criteria.versions"
-        },
-        {
-            "$match" : {
-                "criteria.versions.initiativeId" : ObjectId("58af4da0b310d92314627290")
-            }
         },
         {
             "$group" : {
