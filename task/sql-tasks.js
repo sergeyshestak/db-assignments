@@ -44,7 +44,7 @@ async function task_1_1(db) {
  */
 async function task_1_2(db) {
     let result = await db.query(`
-        SELECT DISTINCT
+        SELECT
             OrderID as "Order Id",
             SUM(UnitPrice * Quantity) as "Order Total Price",
             ROUND(SUM(Discount * Quantity) / SUM(UnitPrice * Quantity) * 100, 3) as "Total Order Discount, %"
@@ -131,8 +131,8 @@ async function task_1_6(db) {
             Categories.CategoryName,
             Suppliers.CompanyName as "SupplierCompanyName"
         FROM Products
-        JOIN Categories ON Products.CategoryID=Categories.CategoryID
-        JOIN Suppliers ON Products.SupplierID=Suppliers.SupplierID
+        INNER JOIN Categories ON Products.CategoryID=Categories.CategoryID
+        INNER JOIN Suppliers ON Products.SupplierID=Suppliers.SupplierID
         ORDER BY ProductName;
     `);
     return result[0];
@@ -196,7 +196,7 @@ async function task_1_9(db) {
             CustomerID,
             ContactName
         FROM Customers
-        WHERE ContactName RLIKE '^[F].{2}[n]';
+        WHERE ContactName LIKE 'F%__n%';
     `);
     return result[0];
 }
@@ -214,7 +214,7 @@ async function task_1_10(db) {
             ProductID,
             ProductName
         FROM Products
-        WHERE NOT discontinued='0';
+        WHERE NOT discontinued=0;
     `);
     return result[0];
 }
@@ -273,10 +273,11 @@ async function task_1_12(db) {
 async function task_1_13(db) {
     let result = await db.query(`
         SELECT
-            COUNT(*) as TotalOfCurrentProducts,
-            COUNT(CASE
-                WHEN Discontinued='1' THEN true
-                END) as TotalOfDiscontinuedProducts
+			(SELECT COUNT(*)
+			FROM Products) as TotalOfCurrentProducts,
+            (SELECT COUNT(CASE
+                WHEN Discontinued=1 THEN true
+                END)) as TotalOfDiscontinuedProducts
         FROM Products;
     `);
     return result[0];
@@ -311,18 +312,42 @@ async function task_1_14(db) {
 async function task_1_15(db) {
     let result = await db.query(`
         SELECT
-            SUM(MONTH(OrderDate) = 1) as "January",
-            SUM(MONTH(OrderDate) = 2) as "February",
-            SUM(MONTH(OrderDate) = 3) as "March",
-            SUM(MONTH(OrderDate) = 4) as "April",
-            SUM(MONTH(OrderDate) = 5) as "May",
-            SUM(MONTH(OrderDate) = 6) as "June",
-            SUM(MONTH(OrderDate) = 7) as "July",
-            SUM(MONTH(OrderDate) = 8) as "August",
-            SUM(MONTH(OrderDate) = 9) as "September",
-            SUM(MONTH(OrderDate) = 10) as "October",
-            SUM(MONTH(OrderDate) = 11) as "November",
-            SUM(MONTH(OrderDate) = 12) as "December"
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 1 THEN true
+                END) as "January",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 2 THEN true
+                END) as "February",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 3 THEN true
+                END) as "March",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 4 THEN true
+                END) as "April",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 5 THEN true
+                END) as "May",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 6 THEN true
+                END) as "June",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 7 THEN true
+                END) as "July",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 8 THEN true
+                END) as "August",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 9 THEN true
+                END) as "September",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 10 THEN true
+                END) as "October",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 11 THEN true
+                END) as "November",
+            COUNT(CASE
+                WHEN MONTH(OrderDate) = 12 THEN true
+                END) as "December"
         FROM Orders
         WHERE YEAR(OrderDate) = 1997;
     `);
@@ -405,8 +430,8 @@ async function task_1_19(db) {
             Customers.CompanyName,
             SUM(UnitPrice * Quantity) as "TotalOrdersAmount, $" 
         FROM Customers
-        JOIN Orders ON Customers.CustomerID=Orders.CustomerID
-        JOIN OrderDetails ON Orders.OrderID=OrderDetails.OrderID
+        INNER JOIN Orders ON Customers.CustomerID=Orders.CustomerID
+        INNER JOIN OrderDetails ON Orders.OrderID=OrderDetails.OrderID
         GROUP BY CustomerID
         HAVING \`TotalOrdersAmount, $\` > 10000
         ORDER BY 3 DESC, CustomerID;
@@ -429,8 +454,8 @@ async function task_1_20(db) {
             CONCAT(Employees.FirstName, ' ', Employees.LastName) as "Employee Full Name",
             Orders.EmployeeID
         FROM Orders
-        JOIN Employees ON Orders.EmployeeID=Employees.EmployeeID
-        JOIN OrderDetails ON Orders.OrderID=OrderDetails.OrderID
+        INNER JOIN Employees ON Orders.EmployeeID=Employees.EmployeeID
+        INNER JOIN OrderDetails ON Orders.OrderID=OrderDetails.OrderID
         GROUP BY Orders.EmployeeID
         ORDER BY 1 DESC
         LIMIT 1;
@@ -470,16 +495,16 @@ async function task_1_22(db) {
             Customers.CompanyName,
             Products.ProductName,
             OrderDetails.UnitPrice as "PricePerItem"
-        FROM Customers
-        JOIN Orders ON Customers.CustomerID=Orders.CustomerID
-        JOIN OrderDetails ON Orders.OrderID=OrderDetails.OrderID
-        JOIN Products ON OrderDetails.ProductID=Products.ProductID
+		FROM Customers
+        INNER JOIN Orders ON Customers.CustomerID=Orders.CustomerID
+        INNER JOIN OrderDetails ON Orders.OrderID=OrderDetails.OrderID
+        INNER JOIN Products ON OrderDetails.ProductID=Products.ProductID
         WHERE OrderDetails.UnitPrice = (SELECT
                     MAX(OD.UnitPrice)
                 FROM Customers as C
                 JOIN Orders as O ON O.CustomerID=C.CustomerID
                 JOIN OrderDetails as OD ON OD.OrderID=O.OrderID
-                WHERE Customers.CompanyName=C.CompanyName
+                WHERE Customers.CustomerID=C.CustomerID
                 )
         ORDER BY 3 DESC, CompanyName, ProductName;
     `);
