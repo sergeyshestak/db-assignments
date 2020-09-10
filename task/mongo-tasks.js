@@ -21,7 +21,12 @@
  * Test timeout is increased to 15sec for the function.
  * */
 async function before(db) {
-    await db.collection('employees').ensureIndex({CustomerID: 1});
+	await db.collection('employees').ensureIndex({CustomerID: 1});
+    await db.collection('customers').createIndex({CustomerID: 1});
+    await db.collection('order-details').createIndex({OrderID: 1, ProductID: 1});
+    await db.collection('orders').createIndex({OrderID: 1, CustomerID: 1});
+    await db.collection('products').createIndex({ProductID: 1});
+	
 }
 
 /**
@@ -925,7 +930,6 @@ async function task_1_19(db) {
                 as: "order-details"
             }
 		},
-		
 		{
 			$unwind: "$order-details"
 		},
@@ -979,6 +983,12 @@ async function task_1_19(db) {
  */
 async function task_1_20(db) {
     const result = await db.collection('orders').aggregate([
+		{
+            $project: {
+				EmployeeID: 1,
+				OrderID: 1,
+            }
+		},
         {
             $lookup: {
                 from: "employees",
@@ -1000,6 +1010,15 @@ async function task_1_20(db) {
 		},
 		{
 			$unwind: "$order-details"
+		},
+		{
+            $project: {
+				EmployeeID: 1,
+				"order-details.Quantity": 1,
+				"order-details.UnitPrice": 1,
+				"employees.LastName": 1,
+				"employees.FirstName": 1,
+            }
 		},
         {
             $group: {
