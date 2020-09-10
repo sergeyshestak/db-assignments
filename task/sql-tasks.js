@@ -196,7 +196,7 @@ async function task_1_9(db) {
             CustomerID,
             ContactName
         FROM Customers
-        WHERE ContactName LIKE 'F%__n%';
+        WHERE ContactName LIKE 'F__n%';
     `);
     return result[0];
 }
@@ -271,14 +271,13 @@ async function task_1_12(db) {
  *
  */
 async function task_1_13(db) {
-    let result = await db.query(`
-        SELECT
+	let result = await db.query(`
+		SELECT
 			(SELECT COUNT(*)
 			FROM Products) as TotalOfCurrentProducts,
-            (SELECT COUNT(CASE
-                WHEN Discontinued=1 THEN true
-                END)) as TotalOfDiscontinuedProducts
-        FROM Products;
+			(SELECT COUNT(*)
+			FROM Products
+            WHERE Discontinued=1) as TotalOfDiscontinuedProducts
     `);
     return result[0];
 }
