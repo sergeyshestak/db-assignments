@@ -904,6 +904,12 @@ async function task_1_18(db) {
 async function task_1_19(db) {
     const result = await db.collection('customers').aggregate([
         {
+            $project: {
+				CustomerID: 1,
+				CompanyName: 1,
+            }
+        },
+		{
             $lookup: {
                 from: "orders",
                 localField: "CustomerID",
@@ -919,6 +925,7 @@ async function task_1_19(db) {
                 as: "order-details"
             }
 		},
+		
 		{
 			$unwind: "$order-details"
 		},
